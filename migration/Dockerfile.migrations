@@ -1,0 +1,14 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+WORKDIR /src
+
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
+COPY ["AuthService.Context/AuthService.Context.csproj", "AuthService.Context/"]
+RUN dotnet restore "AuthService.Context/AuthService.Context.csproj"
+
+COPY . .
+
+WORKDIR "/src/AuthService.Context"
+
+ENTRYPOINT ["dotnet", "ef", "database", "update"]
