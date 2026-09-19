@@ -1,11 +1,14 @@
 services:
 
-  auth-service:
-    container_name: auth-service
+  tf-auth:
+    container_name: tf-auth
 
     build:
       context: ../AuthService
       dockerfile: Dockerfile
+
+    networks:
+      - think-fast-net
 
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
@@ -28,3 +31,7 @@ services:
       start_period: 10s
 
     restart: unless-stopped
+
+networks:
+  think-fast-net:
+    external: true
