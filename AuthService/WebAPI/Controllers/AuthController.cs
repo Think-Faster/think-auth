@@ -9,7 +9,6 @@ using WebAPI.Contracts;
 namespace WebAPI.Controllers
 {
 	[ApiController]
-	[Route("api/auth")]
 	public class AuthController : ControllerBase
 	{
 		private const string AccessTokenCookieName = "access_token";
