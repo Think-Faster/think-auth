@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService.Context", "Auth
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthService.Cryptography", "AuthService.Cryptography\AuthService.Cryptography.csproj", "{BA827E91-B1EF-7C86-7EBA-3341E1E6F6F7}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthContext.Models", "AuthContext.Models\AuthContext.Models.csproj", "{580AD5C9-E4A9-41BC-A3BF-00C853CF4EA3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{BA827E91-B1EF-7C86-7EBA-3341E1E6F6F7}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BA827E91-B1EF-7C86-7EBA-3341E1E6F6F7}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BA827E91-B1EF-7C86-7EBA-3341E1E6F6F7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{580AD5C9-E4A9-41BC-A3BF-00C853CF4EA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{580AD5C9-E4A9-41BC-A3BF-00C853CF4EA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{580AD5C9-E4A9-41BC-A3BF-00C853CF4EA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{580AD5C9-E4A9-41BC-A3BF-00C853CF4EA3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
