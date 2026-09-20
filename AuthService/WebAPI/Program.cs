@@ -1,8 +1,9 @@
 
 using AuthService.Context;
+using AuthService.Cryptography;
+using AuthService.Cryptography.Interfaces;
 using AuthService.Cryptography.Services;
 using Microsoft.EntityFrameworkCore;
-using AuthService.Cryptography;
 
 namespace WebAPI
 {

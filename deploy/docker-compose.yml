@@ -10,10 +10,15 @@ services:
     networks:
       - think-fast-net
 
+    volumes:
+      - tf-auth-keys:/keys
+
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: ${ASPNETCORE_HTTP_PORTS:-8080}
       Jwt__PrivateKeyPath: ${Jwt__PrivateKeyPath}
+      Jwt__Issuer: ${Jwt__Issuer:-auth-service}
+      Jwt__Audience: ${Jwt__Audience:-api}
 
     healthcheck:
       test:
