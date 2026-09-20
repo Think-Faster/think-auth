@@ -16,7 +16,7 @@ public class DesignTimeAuthContextFactory
 		if (string.IsNullOrEmpty(connectionString))
 		{
 			// Для Add-Migration используем заглушку (БД не требуется)
-			connectionString = "Host=localhost;Database=DesignTimeDb;";
+			connectionString = "Host=localhost;Database=tf;";
 		}
 
 		optionsBuilder.UseNpgsql(
