@@ -38,3 +38,6 @@ services:
 networks:
   think-fast-net:
     external: true
+
+volumes:
+  tf-auth-keys:
