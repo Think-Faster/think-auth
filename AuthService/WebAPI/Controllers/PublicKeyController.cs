@@ -4,8 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers
 {
-	[ApiController]
-	[Route("api/auth/.well-known")]
 	public class PublicKeyController : ControllerBase
 	{
 		private readonly ITokenService _tokenService;
@@ -17,8 +15,7 @@ namespace WebAPI.Controllers
 		}
 
 		[AllowAnonymous]
-		[HttpGet("public-key")]
-		[Produces("application/x-pem-file")]
+		[HttpGet(".well-known/jwks")]
 		public IActionResult GetPublicKey()
 		{
 			var publicKey = _tokenService.GetPublicKey();

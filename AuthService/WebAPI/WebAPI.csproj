@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AuthService.Context\AuthService.Context.csproj" />
+    <ProjectReference Include="..\AuthService.Cryptography\AuthService.Cryptography.csproj" />
   </ItemGroup>
 
 </Project>
