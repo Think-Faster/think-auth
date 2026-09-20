@@ -1,6 +1,6 @@
 ﻿using StackExchange.Redis;
 
-namespace WebAPI.Services;
+namespace WebAPI.Services.RateLimit;
 
 public class RedisRateLimitService : IRateLimitService
 {
