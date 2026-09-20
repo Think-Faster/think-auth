@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.Contracts;
+using WebAPI.Services;
 
 namespace WebAPI.Controllers
 {
@@ -17,17 +18,20 @@ namespace WebAPI.Controllers
 		private readonly IPasswordHasher _passwordHasher;
 		private readonly ITokenService _tokenService;
 		private readonly ILogger<AuthController> _logger;
+		private readonly IRateLimitService _rateLimitService;
 
 		public AuthController(
 			AuthContext context,
 			IPasswordHasher passwordHasher,
 			ITokenService tokenService,
-			ILogger<AuthController> logger)
+			ILogger<AuthController> logger,
+			IRateLimitService rateLimitService)
 		{
 			_context = context;
 			_passwordHasher = passwordHasher;
 			_tokenService = tokenService;
 			_logger = logger;
+			_rateLimitService = rateLimitService;
 		}
 
 		[HttpPost("register")]
@@ -150,6 +154,150 @@ namespace WebAPI.Controllers
 				throw;
 			}
 		}
+
+		[HttpPost("login")]
+		[AllowAnonymous]
+		public async Task<IActionResult> Login(
+		[FromBody] LoginRequest request,
+		CancellationToken cancellationToken)
+		{
+			var userName = request.UserName.Trim();
+
+			var ipAddress =
+				HttpContext.Connection.RemoteIpAddress?
+					.ToString()
+				?? "unknown";
+
+
+			_logger.LogInformation(
+				"Login attempt for username {UserName} from IP {IpAddress}.",
+				userName,
+				ipAddress);
+
+
+			// ----------------------------------------------------
+			// Rate limit
+			// ----------------------------------------------------
+
+			var rateLimit =
+				await _rateLimitService.CheckLoginAsync(
+					userName,
+					ipAddress,
+					cancellationToken);
+
+
+			if (!rateLimit.Allowed)
+			{
+				_logger.LogWarning(
+					"Login rate limit exceeded for username {UserName} from IP {IpAddress}. Retry after {RetryAfter} seconds.",
+					userName,
+					ipAddress,
+					rateLimit.RetryAfterSeconds);
+
+
+				Response.Headers.RetryAfter =
+					rateLimit.RetryAfterSeconds.ToString();
+
+
+				return StatusCode(
+					StatusCodes.Status429TooManyRequests,
+					new
+					{
+						message =
+							"Слишком много неудачных попыток входа. Попробуйте позже.",
+						retryAfterSeconds =
+							rateLimit.RetryAfterSeconds
+					});
+			}
+
+
+			try
+			{
+				// ------------------------------------------------
+				// Find user
+				// ------------------------------------------------
+
+				var user =
+					await _context.Users
+						.SingleOrDefaultAsync(
+							x => x.UserName == userName,
+							cancellationToken);
+
+
+				// ------------------------------------------------
+				// Verify credentials
+				// ------------------------------------------------
+
+				if (user == null ||
+					string.IsNullOrEmpty(user.PasswordHash) ||
+					!_passwordHasher.Verify(
+						request.Password,
+						user.PasswordHash))
+				{
+					await _rateLimitService.RegisterFailedLoginAsync(
+						userName,
+						ipAddress,
+						cancellationToken);
+
+
+					_logger.LogWarning(
+						"Invalid login credentials for username {UserName} from IP {IpAddress}.",
+						userName,
+						ipAddress);
+
+
+					// Не сообщаем, существует ли пользователь.
+					return Unauthorized(new
+					{
+						message =
+							"Неверный логин или пароль."
+					});
+				}
+
+
+				// ------------------------------------------------
+				// Successful login
+				// ------------------------------------------------
+
+				await _rateLimitService.ResetLoginAsync(
+					userName,
+					ipAddress,
+					cancellationToken);
+
+
+				var accessToken =
+					_tokenService.GenerateAccessToken(
+						user.Id.ToString());
+
+
+				SetAccessTokenCookie(accessToken);
+
+
+				_logger.LogInformation(
+					"User {UserId} successfully logged in from IP {IpAddress}.",
+					user.Id,
+					ipAddress);
+
+
+				return Ok(new
+				{
+					id = user.Id,
+					userName = user.UserName,
+					email = user.Email
+				});
+			}
+			catch (Exception ex)
+			{
+				_logger.LogError(
+					ex,
+					"Login failed unexpectedly for username {UserName} from IP {IpAddress}.",
+					userName,
+					ipAddress);
+
+				throw;
+			}
+		}
+
 
 		private void SetAccessTokenCookie(string token)
 		{
