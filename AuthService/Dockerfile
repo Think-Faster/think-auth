@@ -5,15 +5,14 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 
 WORKDIR /src
 
-COPY WebAPI/WebAPI.csproj WebAPI/
+# Копируем всё решение
+COPY . .
 
-RUN dotnet restore WebAPI/WebAPI.csproj
+# Восстанавливаем зависимости всего solution
+RUN dotnet restore AuthService.sln
 
-COPY WebAPI/ WebAPI/
-
-WORKDIR /src/WebAPI
-
-RUN dotnet publish WebAPI.csproj \
+# Публикуем WebAPI
+RUN dotnet publish WebAPI/WebAPI.csproj \
     -c Release \
     -o /app/publish \
     --no-restore
