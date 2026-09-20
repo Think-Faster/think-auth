@@ -13,6 +13,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
       ASPNETCORE_HTTP_PORTS: ${ASPNETCORE_HTTP_PORTS:-8080}
+      Jwt__PrivateKeyPath: ${Jwt__PrivateKeyPath}
 
     healthcheck:
       test:

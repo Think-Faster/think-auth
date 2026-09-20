@@ -1,4 +1,9 @@
 
+using AuthService.Context;
+using AuthService.Cryptography.Services;
+using Microsoft.EntityFrameworkCore;
+using AuthService.Cryptography;
+
 namespace WebAPI
 {
     public class Program
@@ -38,5 +43,35 @@ namespace WebAPI
 
             app.Run();
         }
-    }
+
+		public static WebApplicationBuilder Init(string[] args)
+		{
+			var builder = WebApplication.CreateBuilder(args);
+
+			builder.Services
+				.AddControllers(options =>
+				{
+					options.Filters.Add<RefreshTokenFilter>();
+				});
+
+			builder.Services.AddEndpointsApiExplorer();
+			builder.Services.AddSwaggerGen();
+
+			builder.Services
+				.AddDbContext<AuthContext>(options =>
+					options.UseNpgsql(
+						builder.Configuration.GetConnectionString("DefaultConnection"),
+						npgsqlOptions => npgsqlOptions.MigrationsHistoryTable(
+							"__EFMigrationsHistory",
+							"auth"))
+				);
+
+			builder.Services.AddCryptography();
+
+			builder.Services.AddTokenService();
+			builder.Services.AddScoped<RefreshTokenFilter>();
+
+			return builder;
+		}
+	}
 }

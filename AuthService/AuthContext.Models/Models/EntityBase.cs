@@ -8,7 +8,7 @@ namespace AuthService.Models
 	public class EntityBase
 	{
 		[JsonProperty("id")]
-		public Guid Id { get; set; } = new Guid();
+		public Guid Id { get; set; } = Guid.NewGuid();
 
 		[JsonProperty("createdBy")]
 		public Guid CreatedBy { get; set; }
@@ -17,9 +17,9 @@ namespace AuthService.Models
 		public Guid UpdatedBy { get; set; }
 
 		[JsonProperty("createdAt")]
-		public DateTimeOffset CreatedAt { get; set; } = DateTime.Now;
+		public DateTimeOffset CreatedAt { get; set; } = DateTime.UtcNow;
 
 		[JsonProperty("updatedAt")]
-		public DateTimeOffset UpdatedAt { get; set; } = DateTime.Now;
+		public DateTimeOffset UpdatedAt { get; set; } = DateTime.UtcNow;
 	}
 }
