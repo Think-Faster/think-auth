@@ -1,14 +1,23 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0
+
 WORKDIR /src
 
-RUN dotnet tool install --global dotnet-ef
+RUN dotnet tool install --global dotnet-ef --version 8.0.25
+
 ENV PATH="${PATH}:/root/.dotnet/tools"
 
-COPY ["AuthService.Context/AuthService.Context.csproj", "AuthService.Context/"]
-RUN dotnet restore "AuthService.Context/AuthService.Context.csproj"
+# Проекты, от которых зависит AuthService.Context
+COPY ["AuthService/AuthService.Context/AuthService.Context.csproj", "AuthService/AuthService.Context/"]
+COPY ["AuthService/AuthContext.Models/AuthContext.Models.csproj", "AuthService/AuthContext.Models/"]
+COPY ["AuthService/AuthService.Cryptography/AuthService.Cryptography.csproj", "AuthService/AuthService.Cryptography/"]
 
-COPY . .
+RUN dotnet restore "AuthService/AuthService.Context/AuthService.Context.csproj"
 
-WORKDIR "/src/AuthService.Context"
+# Исходники
+COPY ["AuthService/AuthService.Context/", "AuthService/AuthService.Context/"]
+COPY ["AuthService/AuthContext.Models/", "AuthService/AuthContext.Models/"]
+COPY ["AuthService/AuthService.Cryptography/", "AuthService/AuthService.Cryptography/"]
 
-ENTRYPOINT ["dotnet", "ef", "database", "update"]
+WORKDIR /src/AuthService/AuthService.Context
+
+ENTRYPOINT ["dotnet", "ef", "database", "update", "--project", "/src/AuthService/AuthService.Context/AuthService.Context.csproj", "--startup-project", "/src/AuthService/AuthService.Context/AuthService.Context.csproj"]
