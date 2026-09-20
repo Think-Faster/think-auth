@@ -21,7 +21,8 @@ services:
       Jwt__Issuer: ${Jwt__Issuer:-auth-service}
       Jwt__Audience: ${Jwt__Audience:-api}
       ConnectionStrings__DefaultConnection: "Host=${POSTGRES_HOST:-tf-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-tf};Username=${POSTGRES_USER:-tf};Password=${POSTGRES_PASSWORD}"
-
+      Redis__ConnectionString: ${Redis__ConnectionString:-tf-redis:6379}
+      
     healthcheck:
       test:
         [
