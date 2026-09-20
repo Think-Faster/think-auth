@@ -9,6 +9,7 @@ services:
 
     networks:
       - think-fast-net
+      - postgree_app-network
 
     volumes:
       - tf-auth-keys:/keys
@@ -38,6 +39,8 @@ services:
 
 networks:
   think-fast-net:
+    external: true
+  postgree_app-network:
     external: true
 
 volumes:
