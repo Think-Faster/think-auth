@@ -13,6 +13,11 @@ namespace AuthService.Cryptography
 		}
 
 		public static IServiceCollection AddTokenService(this IServiceCollection services)
-			=> services.AddScoped<ITokenService, TokenService>();
+		{
+			services.AddSingleton<RsaKeyProvider>();
+			services.AddScoped<ITokenService, TokenService>();
+
+			return services;
+		}
 	}
 }
