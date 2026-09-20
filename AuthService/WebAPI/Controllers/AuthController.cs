@@ -4,19 +4,20 @@ using AuthService.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using WebAPI.Common;
 using WebAPI.Contracts;
 using WebAPI.Services;
+using WebAPI.Services.RateLimit;
 
 namespace WebAPI.Controllers
 {
 	[ApiController]
 	public class AuthController : ControllerBase
 	{
-		private const string AccessTokenCookieName = "access_token";
-
 		private readonly AuthContext _context;
 		private readonly IPasswordHasher _passwordHasher;
 		private readonly ITokenService _tokenService;
+		private readonly IAuthSessionService _authSessionService;
 		private readonly ILogger<AuthController> _logger;
 		private readonly IRateLimitService _rateLimitService;
 
@@ -24,12 +25,14 @@ namespace WebAPI.Controllers
 			AuthContext context,
 			IPasswordHasher passwordHasher,
 			ITokenService tokenService,
+			IAuthSessionService authSessionService,
 			ILogger<AuthController> logger,
 			IRateLimitService rateLimitService)
 		{
 			_context = context;
 			_passwordHasher = passwordHasher;
 			_tokenService = tokenService;
+			_authSessionService = authSessionService;
 			_logger = logger;
 			_rateLimitService = rateLimitService;
 		}
@@ -44,7 +47,6 @@ namespace WebAPI.Controllers
 				"Registration attempt for username {UserName}, email {Email}.",
 				request.UserName,
 				request.Email);
-
 
 			try
 			{
@@ -67,7 +69,6 @@ namespace WebAPI.Controllers
 					});
 				}
 
-
 				var emailExists =
 					await _context.Users
 						.AnyAsync(
@@ -87,55 +88,31 @@ namespace WebAPI.Controllers
 					});
 				}
 
-
 				var user = new User
 				{
 					Id = Guid.NewGuid(),
-
 					UserName = request.UserName,
-
 					Email = request.Email,
-
 					SuperUser = false,
-
 					CreatedBy = Guid.Empty,
-
 					UpdatedBy = Guid.Empty,
-
 					CreatedAt = DateTimeOffset.UtcNow,
-
 					UpdatedAt = DateTimeOffset.UtcNow
 				};
-
 
 				user.SetPassword(
 					request.Password,
 					_passwordHasher);
 
-
 				_context.Users.Add(user);
 
-				await _context.SaveChangesAsync(
-					cancellationToken);
-
+				await _context.SaveChangesAsync(cancellationToken);
 
 				_logger.LogInformation(
 					"User {UserId} successfully created.",
 					user.Id);
 
-
-				var accessToken =
-					_tokenService.GenerateAccessToken(
-						user.Id.ToString());
-
-
-				SetAccessTokenCookie(accessToken);
-
-
-				_logger.LogInformation(
-					"Access token generated for user {UserId}.",
-					user.Id);
-
+				IssueTokens(user);
 
 				return Ok(new
 				{
@@ -168,23 +145,16 @@ namespace WebAPI.Controllers
 					.ToString()
 				?? "unknown";
 
-
 			_logger.LogInformation(
 				"Login attempt for username {UserName} from IP {IpAddress}.",
 				userName,
 				ipAddress);
-
-
-			// ----------------------------------------------------
-			// Rate limit
-			// ----------------------------------------------------
 
 			var rateLimit =
 				await _rateLimitService.CheckLoginAsync(
 					userName,
 					ipAddress,
 					cancellationToken);
-
 
 			if (!rateLimit.Allowed)
 			{
@@ -194,10 +164,8 @@ namespace WebAPI.Controllers
 					ipAddress,
 					rateLimit.RetryAfterSeconds);
 
-
 				Response.Headers.RetryAfter =
 					rateLimit.RetryAfterSeconds.ToString();
-
 
 				return StatusCode(
 					StatusCodes.Status429TooManyRequests,
@@ -210,23 +178,13 @@ namespace WebAPI.Controllers
 					});
 			}
 
-
 			try
 			{
-				// ------------------------------------------------
-				// Find user
-				// ------------------------------------------------
-
 				var user =
 					await _context.Users
 						.SingleOrDefaultAsync(
 							x => x.UserName == userName,
 							cancellationToken);
-
-
-				// ------------------------------------------------
-				// Verify credentials
-				// ------------------------------------------------
 
 				if (user == null ||
 					string.IsNullOrEmpty(user.PasswordHash) ||
@@ -239,14 +197,11 @@ namespace WebAPI.Controllers
 						ipAddress,
 						cancellationToken);
 
-
 					_logger.LogWarning(
 						"Invalid login credentials for username {UserName} from IP {IpAddress}.",
 						userName,
 						ipAddress);
 
-
-					// Не сообщаем, существует ли пользователь.
 					return Unauthorized(new
 					{
 						message =
@@ -254,30 +209,17 @@ namespace WebAPI.Controllers
 					});
 				}
 
-
-				// ------------------------------------------------
-				// Successful login
-				// ------------------------------------------------
-
 				await _rateLimitService.ResetLoginAsync(
 					userName,
 					ipAddress,
 					cancellationToken);
 
-
-				var accessToken =
-					_tokenService.GenerateAccessToken(
-						user.Id.ToString());
-
-
-				SetAccessTokenCookie(accessToken);
-
+				IssueTokens(user);
 
 				_logger.LogInformation(
 					"User {UserId} successfully logged in from IP {IpAddress}.",
 					user.Id,
 					ipAddress);
-
 
 				return Ok(new
 				{
@@ -298,28 +240,47 @@ namespace WebAPI.Controllers
 			}
 		}
 
-
-		private void SetAccessTokenCookie(string token)
+		[HttpPost("refresh")]
+		[AllowAnonymous]
+		public async Task<IActionResult> Refresh(CancellationToken cancellationToken)
 		{
-			Response.Cookies.Append(
-				AccessTokenCookieName,
-				token,
-				new CookieOptions
+			var result = await _authSessionService.RefreshAsync(HttpContext, cancellationToken);
+
+			if (!result.Success || result.User is null)
+			{
+				_logger.LogWarning("Refresh rejected: {Reason}.", result.FailureReason);
+
+				AuthCookies.ClearAll(Response);
+
+				return Unauthorized(new
 				{
-					HttpOnly = true,
-
-					Secure = true,
-
-					SameSite = SameSiteMode.Lax,
-
-					// JWT не должен жить дольше самого access token.
-					// Здесь пример на 15 минут.
-					MaxAge = TimeSpan.FromMinutes(15),
-
-					Path = "/",
-
-					IsEssential = true
+					message = "Сессия истекла, требуется повторный вход."
 				});
+			}
+
+			_logger.LogInformation(
+				"Session refreshed for user {UserId}.",
+				result.User.Id);
+
+			return Ok(new
+			{
+				id = result.User.Id,
+				userName = result.User.UserName,
+				email = result.User.Email
+			});
+		}
+
+		private void IssueTokens(User user)
+		{
+			var accessToken = _tokenService.GenerateAccessToken(user.Id.ToString());
+			var refreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString());
+
+			AuthCookies.SetAccessToken(Response, accessToken);
+			AuthCookies.SetRefreshToken(Response, refreshToken);
+
+			_logger.LogInformation(
+				"Access и refresh токены выпущены для пользователя {UserId}.",
+				user.Id);
 		}
 	}
 }

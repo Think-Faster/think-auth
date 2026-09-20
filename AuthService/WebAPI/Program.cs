@@ -5,6 +5,7 @@ using AuthService.Cryptography.Interfaces;
 using AuthService.Cryptography.Services;
 using Microsoft.EntityFrameworkCore;
 using WebAPI.Services;
+using WebAPI.Services.RateLimit;
 
 namespace WebAPI
 {
@@ -75,6 +76,7 @@ namespace WebAPI
 
 			builder.Services.AddTokenService();
 			builder.Services.AddScoped<RefreshTokenFilter>();
+			builder.Services.AddScoped<IAuthSessionService, AuthSessionService>();
 
 			builder.AddRedis();
 

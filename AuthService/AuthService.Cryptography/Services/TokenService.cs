@@ -10,6 +10,10 @@ namespace AuthService.Cryptography.Services;
 
 public class TokenService : ITokenService
 {
+	private const string TokenTypeClaim = "token_type";
+	private const string AccessTokenType = "access";
+	private const string RefreshTokenType = "refresh";
+
 	private readonly RSA _rsa;
 	private readonly RsaSecurityKey _privateKey;
 	private readonly string _issuer;
@@ -36,19 +40,20 @@ public class TokenService : ITokenService
 
 	public string GenerateAccessToken(string subject)
 	{
-		return GenerateToken(subject, 10);
+		return GenerateToken(subject, 10, AccessTokenType);
 	}
 
 
 	public string GenerateRefreshToken(string subject)
 	{
-		return GenerateToken(subject, 60 * 24);
+		return GenerateToken(subject, 60 * 24, RefreshTokenType);
 	}
 
 
 	public string GenerateToken(
 		string subject,
-		int minutes)
+		int minutes,
+		string tokenType = AccessTokenType)
 	{
 		var claims = new[]
 		{
@@ -58,7 +63,15 @@ public class TokenService : ITokenService
 
 			new Claim(
 				JwtRegisteredClaimNames.Sub,
-				subject)
+				subject),
+
+			new Claim(
+				TokenTypeClaim,
+				tokenType),
+
+			new Claim(
+				JwtRegisteredClaimNames.Jti,
+				Guid.NewGuid().ToString())
 		};
 
 		var credentials = new SigningCredentials(
@@ -81,18 +94,40 @@ public class TokenService : ITokenService
 		string token,
 		bool validateLifetime = true)
 	{
-		return Validate(
-			token,
-			validateLifetime);
+		var principal = Validate(token, validateLifetime);
+
+		return HasTokenType(principal, AccessTokenType)
+			? principal
+			: null;
 	}
 
 
 	public ClaimsPrincipal? ValidateRefreshToken(
 		string token)
 	{
-		return Validate(
-			token,
-			true);
+		var principal = Validate(token, true);
+
+		return HasTokenType(principal, RefreshTokenType)
+			? principal
+			: null;
+	}
+
+
+	private static bool HasTokenType(
+		ClaimsPrincipal? principal,
+		string expectedType)
+	{
+		if (principal is null)
+		{
+			return false;
+		}
+
+		var actualType = principal.FindFirst(TokenTypeClaim)?.Value;
+
+		return string.Equals(
+			actualType,
+			expectedType,
+			StringComparison.Ordinal);
 	}
 
 
@@ -153,37 +188,5 @@ public class TokenService : ITokenService
 		builder.AppendLine("-----END PUBLIC KEY-----");
 
 		return builder.ToString();
-	}
-
-
-	public string GenerateServiceToken(
-		ClaimsPrincipal client)
-	{
-		var claims = new[]
-		{
-			new Claim(
-				ClaimTypes.NameIdentifier,
-				client.FindFirst(
-					ClaimTypes.NameIdentifier)?.Value
-				?? string.Empty),
-
-			new Claim(
-				"client_type",
-				"machine")
-		};
-
-		var credentials = new SigningCredentials(
-			_privateKey,
-			SecurityAlgorithms.RsaSha256);
-
-		var token = new JwtSecurityToken(
-			issuer: _issuer,
-			audience: "mail-service",
-			claims: claims,
-			expires: DateTime.UtcNow.AddDays(1),
-			signingCredentials: credentials);
-
-		return new JwtSecurityTokenHandler()
-			.WriteToken(token);
 	}
 }
