@@ -60,7 +60,7 @@ namespace WebAPI.Controllers
 				email = result.User.Email
 			});
 		}
-
+		 
 		[HttpPost("create")]
 		[AllowAnonymous]
 		public async Task<IActionResult> Register(
