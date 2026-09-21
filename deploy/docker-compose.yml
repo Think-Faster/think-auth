@@ -29,7 +29,7 @@ services:
            "CMD",
            "curl",
            "-f",
-           "http://localhost:8081/health"
+           "http://tf-auth:8081/health"
         ]
       interval: 10s
       timeout: 5s
