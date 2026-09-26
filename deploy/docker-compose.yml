@@ -1,5 +1,6 @@
 # Секреты — только в Vault (secret/tf/...). Контейнеры забирают их при каждом старте через
 # vault-entrypoint.sh. Из окружения выкатки нужны только VAULT_ROLE_ID и VAULT_SECRET_ID.
+# Настройки (хосты, порты) — в deploy/.env, шаблон: deploy/.env.example.
 #
 # $$ — чтобы docker compose не подставлял сам: в контейнер попадёт литерал ${...},
 # его заменит vault-entrypoint.sh значением из Vault.
@@ -27,7 +28,7 @@ services:
       <<: *vault-access
       VAULT_SECRET_PATHS: postgres/auth
       VAULT_EXPAND: ConnectionStrings__DefaultConnection
-      ConnectionStrings__DefaultConnection: "Host=tf-postgres;Port=5432;Database=tf;Username=auth_admin;Password=$${TF_PG_AUTH_ADMIN_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=${POSTGRES_HOST:-tf-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-tf};Username=auth_admin;Password=$${TF_PG_AUTH_ADMIN_PASSWORD}"
 
     restart: "no"
 
@@ -63,17 +64,17 @@ services:
       VAULT_FILES: TF_AUTH_JWT_PRIVATE_KEY_B64:/run/secrets/jwt-private.pem
       Jwt__PrivateKeyPath: /run/secrets/jwt-private.pem
 
-      ASPNETCORE_ENVIRONMENT: Production
-      ASPNETCORE_HTTP_PORTS: 8080
-      Jwt__Issuer: auth-service
-      Jwt__Audience: api
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_HTTP_PORTS: ${ASPNETCORE_HTTP_PORTS:-8080}
+      Jwt__Issuer: ${Jwt__Issuer:-auth-service}
+      Jwt__Audience: ${Jwt__Audience:-api}
 
       # Приложение — только под auth_user (без DDL).
-      ConnectionStrings__DefaultConnection: "Host=tf-postgres;Port=5432;Database=tf;Username=auth_user;Password=$${TF_PG_AUTH_USER_PASSWORD}"
-      Redis__ConnectionString: "tf-redis:6379,password=$${TF_REDIS_PASSWORD}"
+      ConnectionStrings__DefaultConnection: "Host=${POSTGRES_HOST:-tf-postgres};Port=${POSTGRES_PORT:-5432};Database=${POSTGRES_DB:-tf};Username=auth_user;Password=$${TF_PG_AUTH_USER_PASSWORD}"
+      Redis__ConnectionString: "${REDIS_HOST:-tf-redis}:${REDIS_PORT:-6379},password=$${TF_REDIS_PASSWORD}"
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${ASPNETCORE_HTTP_PORTS:-8080}/health"]
       interval: 10s
       timeout: 5s
       retries: 3
