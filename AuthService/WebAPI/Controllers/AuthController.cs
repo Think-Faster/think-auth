@@ -272,8 +272,8 @@ namespace WebAPI.Controllers
 
 		private void IssueTokens(User user)
 		{
-			var accessToken = _tokenService.GenerateAccessToken(user.Id.ToString());
-			var refreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString());
+			var accessToken = _tokenService.GenerateAccessToken(user.Id.ToString(), user.UserName);
+			var refreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.UserName);
 
 			AuthCookies.SetAccessToken(Response, accessToken);
 			AuthCookies.SetRefreshToken(Response, refreshToken);

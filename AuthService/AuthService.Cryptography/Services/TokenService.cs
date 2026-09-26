@@ -10,7 +10,13 @@ namespace AuthService.Cryptography.Services;
 
 public class TokenService : ITokenService
 {
-	private const string TokenTypeClaim = "token_type";
+	// Тип токена: "typ" — по контракту (docs/common/права-и-аудит.md §2), "token_type" — прежнее имя,
+	// пишется тоже, чтобы выпущенные раньше токены и их читатели продолжали работать.
+	private const string TokenTypeClaim = "typ";
+	private const string LegacyTokenTypeClaim = "token_type";
+	private const string KindClaim = "kind";
+	private const string LoginClaim = "login";
+	private const string UserKind = "user";
 	private const string AccessTokenType = "access";
 	private const string RefreshTokenType = "refresh";
 
@@ -38,24 +44,25 @@ public class TokenService : ITokenService
 	}
 
 
-	public string GenerateAccessToken(string subject)
+	public string GenerateAccessToken(string subject, string? login = null)
 	{
-		return GenerateToken(subject, 10, AccessTokenType);
+		return GenerateToken(subject, 10, AccessTokenType, login);
 	}
 
 
-	public string GenerateRefreshToken(string subject)
+	public string GenerateRefreshToken(string subject, string? login = null)
 	{
-		return GenerateToken(subject, 60 * 24, RefreshTokenType);
+		return GenerateToken(subject, 60 * 24, RefreshTokenType, login);
 	}
 
 
 	public string GenerateToken(
 		string subject,
 		int minutes,
-		string tokenType = AccessTokenType)
+		string tokenType = AccessTokenType,
+		string? login = null)
 	{
-		var claims = new[]
+		var claims = new List<Claim>
 		{
 			new Claim(
 				ClaimTypes.NameIdentifier,
@@ -70,9 +77,23 @@ public class TokenService : ITokenService
 				tokenType),
 
 			new Claim(
+				LegacyTokenTypeClaim,
+				tokenType),
+
+			new Claim(
+				KindClaim,
+				UserKind),
+
+			new Claim(
 				JwtRegisteredClaimNames.Jti,
 				Guid.NewGuid().ToString())
 		};
+
+		// login — чтобы в аудите было видно, кто это, без запроса в аутентификацию.
+		if (!string.IsNullOrEmpty(login))
+		{
+			claims.Add(new Claim(LoginClaim, login));
+		}
 
 		var credentials = new SigningCredentials(
 			_privateKey,
@@ -122,7 +143,8 @@ public class TokenService : ITokenService
 			return false;
 		}
 
-		var actualType = principal.FindFirst(TokenTypeClaim)?.Value;
+		var actualType = principal.FindFirst(TokenTypeClaim)?.Value
+			?? principal.FindFirst(LegacyTokenTypeClaim)?.Value;
 
 		return string.Equals(
 			actualType,

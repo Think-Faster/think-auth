@@ -40,8 +40,10 @@ namespace AuthService.Cryptography.Services
 			if (userId == null)
 				return;
 
-			var newAccess = _tokenService.GenerateAccessToken(userId);
-			var newRefresh = _tokenService.GenerateRefreshToken(userId);
+			var login = principal.FindFirst("login")?.Value;
+
+			var newAccess = _tokenService.GenerateAccessToken(userId, login);
+			var newRefresh = _tokenService.GenerateRefreshToken(userId, login);
 
 			http.Response.Cookies.Append("accessToken", newAccess, new CookieOptions
 			{
