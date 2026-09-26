@@ -1,5 +1,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0
 
+# curl, jq — для vault-entrypoint.sh
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl jq \
+ && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /src
 
 RUN dotnet tool install --global dotnet-ef --version 8.0.25
@@ -18,6 +23,11 @@ COPY ["AuthService/AuthService.Context/", "AuthService/AuthService.Context/"]
 COPY ["AuthService/AuthContext.Models/", "AuthService/AuthContext.Models/"]
 COPY ["AuthService/AuthService.Cryptography/", "AuthService/AuthService.Cryptography/"]
 
+COPY vault-entrypoint.sh /usr/local/bin/vault-entrypoint.sh
+RUN chmod +x /usr/local/bin/vault-entrypoint.sh
+
 WORKDIR /src/AuthService/AuthService.Context
 
-ENTRYPOINT ["dotnet", "ef", "database", "update", "--project", "/src/AuthService/AuthService.Context/AuthService.Context.csproj", "--startup-project", "/src/AuthService/AuthService.Context/AuthService.Context.csproj"]
+# Пароль auth_admin забирается из Vault, затем выполняются миграции.
+ENTRYPOINT ["/usr/local/bin/vault-entrypoint.sh"]
+CMD ["dotnet", "ef", "database", "update", "--project", "/src/AuthService/AuthService.Context/AuthService.Context.csproj", "--startup-project", "/src/AuthService/AuthService.Context/AuthService.Context.csproj"]

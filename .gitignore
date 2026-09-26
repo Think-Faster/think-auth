@@ -10,6 +10,9 @@
 *.userosscache
 *.sln.docstates
 *.env
+.env
+.env.*
+!.env.example
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
@@ -427,3 +430,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Ключи JWT (локальная разработка)
+keys/
+*.pem
