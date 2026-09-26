@@ -17,6 +17,8 @@ env:
 
 jobs:
   deploy:
+    # VAULT_ROLE_ID / VAULT_SECRET_ID — в GitHub Environment dev
+    environment: dev
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -38,7 +40,12 @@ jobs:
 
       - name: Deploy via SSH with debug
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          VAULT_ROLE_ID: ${{ secrets.VAULT_ROLE_ID }}
+          VAULT_SECRET_ID: ${{ secrets.VAULT_SECRET_ID }}
         with:
+          # Передаются в окружение docker-compose на сервере: контейнеры сами заберут секреты из Vault
+          envs: VAULT_ROLE_ID,VAULT_SECRET_ID
           host: ${{ secrets.DEV_IP }}
           username: ${{ secrets.DEV_USER }}
           key: ${{ secrets.DEV_SSH_KEY }}
