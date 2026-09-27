@@ -79,6 +79,8 @@ namespace WebAPI
 			builder.Services.AddScoped<IAuthSessionService, AuthSessionService>();
 
 			builder.AddRedis();
+			builder.Services.AddHttpContextAccessor();
+			builder.Services.AddSingleton<WebAPI.Services.Audit.AuditWriter>();
 
 			return builder;
 		}

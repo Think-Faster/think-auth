@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using WebAPI.Common;
 using WebAPI.Contracts;
 using WebAPI.Services;
+using WebAPI.Services.Audit;
 
 namespace WebAPI.Controllers
 {
@@ -17,17 +18,20 @@ namespace WebAPI.Controllers
 		private readonly IAuthSessionService _authSessionService;
 		private readonly ILogger<UserController> _logger;
 		private readonly IPasswordHasher _passwordHasher;
+		private readonly AuditWriter _audit;
 
 		public UserController(
 			AuthContext context,
 			IAuthSessionService authSessionService,
 			ILogger<UserController> logger,
-			IPasswordHasher passwordHasher)
+			IPasswordHasher passwordHasher,
+			AuditWriter audit)
 		{
 			_context = context;
 			_authSessionService = authSessionService;
 			_logger = logger;
 			_passwordHasher = passwordHasher;
+			_audit = audit;
 		}
 
 		// [AllowAnonymous], т.к. авторизацию делаем вручную через
@@ -96,6 +100,9 @@ namespace WebAPI.Controllers
 						"/create: forbid request ({Reason}).",
 						result.FailureReason);
 
+					await _audit.WriteAsync("access.denied", "denied", result.User.Id, result.User.UserName,
+						new Dictionary<string, object?> { ["action"] = "user.create", ["reason"] = "not_superuser" });
+
 					return Unauthorized(new
 					{
 						message = "Недостаточно прав."
@@ -163,6 +170,15 @@ namespace WebAPI.Controllers
 				_logger.LogInformation(
 					"User {UserId} successfully created.",
 					user.Id);
+
+				// Кто создал — в подробностях; объект события — новый пользователь.
+				await _audit.WriteAsync("user.created", "success", user.Id, user.UserName,
+					new Dictionary<string, object?>
+					{
+						["method"] = "create",
+						["created_by"] = result.User.Id.ToString(),
+						["created_by_login"] = result.User.UserName
+					});
 
 				return Ok(new
 				{
