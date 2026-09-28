@@ -292,6 +292,15 @@ namespace WebAPI.Controllers
 			});
 		}
 
+		// Куки HttpOnly: фронт сам их не сотрёт, а refresh-кука молча подняла бы сессию на следующем /me.
+		[HttpPost("logout")]
+		[AllowAnonymous]
+		public IActionResult Logout()
+		{
+			AuthCookies.ClearAll(Response);
+			return NoContent();
+		}
+
 		private void IssueTokens(User user)
 		{
 			var accessToken = _tokenService.GenerateAccessToken(user.Id.ToString(), user.UserName);

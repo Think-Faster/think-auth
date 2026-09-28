@@ -7,10 +7,12 @@ namespace WebAPI.Common
 		public const string AccessTokenCookieName = "access_token";
 		public const string RefreshTokenCookieName = "refresh_token";
 
-		// Должно соответствовать срокам жизни, зашитым в TokenService
-		// (GenerateAccessToken / GenerateRefreshToken). Если поменяете
-		// минуты там — поправьте и здесь.
-		private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(10);
+		// Должно соответствовать сроку жизни refresh-токена в TokenService
+		// (GenerateRefreshToken). Если поменяете минуты там — поправьте и здесь.
+		// Access-токен живёт 10 минут, но его кука — столько же, сколько сессия:
+		// BFF продлевает сессию, только когда видит просроченный токен. Кука со сроком
+		// токена исчезала вместе с ним, и после 10 минут без запросов BFF отвечал
+		// 401 unauthenticated вместо продления — пользователя выкидывало на вход.
 		private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromHours(24);
 
 		public static void SetAccessToken(HttpResponse response, string token)
@@ -23,7 +25,7 @@ namespace WebAPI.Common
 					HttpOnly = true,
 					Secure = true,
 					SameSite = SameSiteMode.Lax,
-					MaxAge = AccessTokenLifetime,
+					MaxAge = RefreshTokenLifetime,
 					Path = "/",
 					IsEssential = true
 				});
