@@ -74,6 +74,12 @@ jobs:
             # Docker operations
             echo "Stopping containers..."
             cd deploy
+
+            # Настройки (не секреты): если .env нет — создаём из шаблона как есть
+            if [ ! -f .env ]; then
+              echo ".env not found, creating from .env.example"
+              cp .env.example .env
+            fi
             
             docker-compose down || true
             

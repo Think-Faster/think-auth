@@ -107,8 +107,8 @@ namespace WebAPI.Services
 				return AuthSessionResult.Fail("user_not_found");
 			}
 
-			var newAccessToken = _tokenService.GenerateAccessToken(user.Id.ToString());
-			var newRefreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString());
+			var newAccessToken = _tokenService.GenerateAccessToken(user.Id.ToString(), user.UserName);
+			var newRefreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.UserName);
 
 			AuthCookies.SetAccessToken(httpContext.Response, newAccessToken);
 			AuthCookies.SetRefreshToken(httpContext.Response, newRefreshToken);

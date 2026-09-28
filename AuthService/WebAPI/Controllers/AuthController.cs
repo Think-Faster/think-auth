@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using WebAPI.Common;
 using WebAPI.Contracts;
 using WebAPI.Services;
+using WebAPI.Services.Audit;
 using WebAPI.Services.RateLimit;
 
 namespace WebAPI.Controllers
@@ -20,6 +21,7 @@ namespace WebAPI.Controllers
 		private readonly IAuthSessionService _authSessionService;
 		private readonly ILogger<AuthController> _logger;
 		private readonly IRateLimitService _rateLimitService;
+		private readonly AuditWriter _audit;
 
 		public AuthController(
 			AuthContext context,
@@ -27,7 +29,8 @@ namespace WebAPI.Controllers
 			ITokenService tokenService,
 			IAuthSessionService authSessionService,
 			ILogger<AuthController> logger,
-			IRateLimitService rateLimitService)
+			IRateLimitService rateLimitService,
+			AuditWriter audit)
 		{
 			_context = context;
 			_passwordHasher = passwordHasher;
@@ -35,6 +38,7 @@ namespace WebAPI.Controllers
 			_authSessionService = authSessionService;
 			_logger = logger;
 			_rateLimitService = rateLimitService;
+			_audit = audit;
 		}
 
 		[HttpPost("register")]
@@ -112,6 +116,9 @@ namespace WebAPI.Controllers
 					"User {UserId} successfully created.",
 					user.Id);
 
+				await _audit.WriteAsync("user.created", "success", user.Id, user.UserName,
+					new Dictionary<string, object?> { ["method"] = "register" });
+
 				IssueTokens(user);
 
 				return Ok(new
@@ -164,6 +171,9 @@ namespace WebAPI.Controllers
 					ipAddress,
 					rateLimit.RetryAfterSeconds);
 
+				await _audit.WriteAsync("account.locked", "denied", null, userName,
+					new Dictionary<string, object?> { ["retry_after_seconds"] = rateLimit.RetryAfterSeconds });
+
 				Response.Headers.RetryAfter =
 					rateLimit.RetryAfterSeconds.ToString();
 
@@ -202,6 +212,13 @@ namespace WebAPI.Controllers
 						userName,
 						ipAddress);
 
+					// Логин — как его ввели; пароль не пишется никогда (§6.3).
+					await _audit.WriteAsync("login.failure", "denied", user?.Id, userName,
+						new Dictionary<string, object?>
+						{
+							["reason"] = user == null ? "unknown_login" : "wrong_password"
+						});
+
 					return Unauthorized(new
 					{
 						message =
@@ -220,6 +237,9 @@ namespace WebAPI.Controllers
 					"User {UserId} successfully logged in from IP {IpAddress}.",
 					user.Id,
 					ipAddress);
+
+				await _audit.WriteAsync("login.success", "success", user.Id, user.UserName,
+					new Dictionary<string, object?> { ["method"] = "password" });
 
 				return Ok(new
 				{
@@ -262,6 +282,8 @@ namespace WebAPI.Controllers
 				"Session refreshed for user {UserId}.",
 				result.User.Id);
 
+			await _audit.WriteAsync("token.refreshed", "success", result.User.Id, result.User.UserName);
+
 			return Ok(new
 			{
 				id = result.User.Id,
@@ -272,8 +294,8 @@ namespace WebAPI.Controllers
 
 		private void IssueTokens(User user)
 		{
-			var accessToken = _tokenService.GenerateAccessToken(user.Id.ToString());
-			var refreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString());
+			var accessToken = _tokenService.GenerateAccessToken(user.Id.ToString(), user.UserName);
+			var refreshToken = _tokenService.GenerateRefreshToken(user.Id.ToString(), user.UserName);
 
 			AuthCookies.SetAccessToken(Response, accessToken);
 			AuthCookies.SetRefreshToken(Response, refreshToken);
